@@ -26,7 +26,7 @@ swapon $SWAP_PARTITION
 
 # Install base system
 echo "Installing base system..."
-pacstrap /mnt base linux linux-firmware nano
+pacstrap /mnt base linux linux-firmware nano iwd
 
 # Generate fstab
 echo "Generating fstab..."
