@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Clear the screen to start with a clean slate
 clear
 
@@ -65,11 +63,11 @@ echo "Installing base system..." | tee -a $LOGFILE
 pacstrap /mnt base linux linux-firmware nano networkmanager dhcpcd base-devel gcc make bison flex perl grub efibootmgr > /dev/null 2>> $LOGFILE || echo "Base system installation failed" | tee -a $LOGFILE
 echo "Step 1/4 complete."
 
-# Install LXQt and LightDM with default applications
-echo "Installing LXQt and LightDM..." | tee -a $LOGFILE
-arch-chroot /mnt pacman -S lxqt lxqt-qtplugin lightdm lightdm-gtk-greeter --noconfirm > /dev/null 2>> $LOGFILE
-echo "Enabling LightDM..." | tee -a $LOGFILE
-arch-chroot /mnt systemctl enable lightdm > /dev/null 2>> $LOGFILE || echo "Failed to enable LightDM" | tee -a $LOGFILE
+# Install KDE Plasma and SDDM (display manager) with all default applications
+echo "Installing KDE Plasma and SDDM..." | tee -a $LOGFILE
+arch-chroot /mnt pacman -S plasma kde-applications sddm --noconfirm > /dev/null 2>> $LOGFILE
+echo "Enabling SDDM..." | tee -a $LOGFILE
+arch-chroot /mnt systemctl enable sddm > /dev/null 2>> $LOGFILE || echo "Failed to enable SDDM" | tee -a $LOGFILE
 
 # Generate fstab
 echo "Step 2/4: Generating fstab..." | tee -a $LOGFILE
