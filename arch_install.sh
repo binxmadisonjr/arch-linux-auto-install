@@ -13,18 +13,23 @@ LOCALE="en_US.UTF-8"
 # Prompt for necessary information
 echo "Please enter the hostname:"
 read HOSTNAME
+clear
 
 echo "Please enter the time zone (e.g., America/Chicago):"
 read TIMEZONE
+clear
 
 echo "Please enter the root password:"
 read -s ROOT_PASSWORD
+clear
 
 echo "Please enter the user name:"
 read USER_NAME
+clear
 
 echo "Please enter the password for user [$USER_NAME]:"
 read -s USER_PASSWORD
+clear
 
 # Helper function for error handling
 handle_error() {
@@ -60,15 +65,11 @@ echo "Installing base system..." | tee -a $LOGFILE
 pacstrap /mnt base linux linux-firmware nano networkmanager dhcpcd base-devel gcc make bison flex perl grub efibootmgr > /dev/null 2>> $LOGFILE || echo "Base system installation failed" | tee -a $LOGFILE
 echo "Step 1/4 complete."
 
-# Install LightDM (display manager) and enable it
-echo "Installing LightDM..." | tee -a $LOGFILE
-arch-chroot /mnt pacman -S lightdm lightdm-gtk-greeter --noconfirm > /dev/null 2>> $LOGFILE
-echo "Enabling LightDM..." | tee -a $LOGFILE
-arch-chroot /mnt systemctl enable lightdm > /dev/null 2>> $LOGFILE
-
-# Install CuteFish Desktop Environment
-echo "Installing CuteFish Desktop..." | tee -a $LOGFILE
-arch-chroot /mnt pacman -S cutefish cutefish-core cutefish-settings cutefish-dock --noconfirm > /dev/null 2>> $LOGFILE
+# Install KDE Plasma and SDDM (display manager) with all default applications
+echo "Installing KDE Plasma and SDDM..." | tee -a $LOGFILE
+arch-chroot /mnt pacman -S plasma kde-applications sddm --noconfirm > /dev/null 2>> $LOGFILE
+echo "Enabling SDDM..." | tee -a $LOGFILE
+arch-chroot /mnt systemctl enable sddm > /dev/null 2>> $LOGFILE || echo "Failed to enable SDDM" | tee -a $LOGFILE
 
 # Generate fstab
 echo "Step 2/4: Generating fstab..." | tee -a $LOGFILE
@@ -127,9 +128,9 @@ grub-mkconfig -o /boot/grub/grub.cfg > /dev/null 2>> $LOGFILE || echo "Failed to
 EOF
 echo "Step 3/4 complete."
 
-# Unmount partitions and reboot with a 10-second delay
-echo "Step 4/4: Unmounting partitions and rebooting..." | tee -a $LOGFILE
+# Unmount partitions and shutdown with a 10-second delay
+echo "Step 4/4: Unmounting partitions and shutting down..." | tee -a $LOGFILE
 umount -R /mnt > /dev/null 2>> $LOGFILE || echo "Failed to unmount partitions" | tee -a $LOGFILE
-echo "System will reboot in 10 seconds..." | tee -a $LOGFILE
+echo "System will shutdown in 10 seconds..." | tee -a $LOGFILE
 sleep 10
-reboot
+shutdown now
