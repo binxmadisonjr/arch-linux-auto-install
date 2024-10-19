@@ -1,16 +1,14 @@
 # Arch Linux Automated Installation Script
 
 ## Description
-This is a shell script designed to automate the installation of Arch Linux, complete with network setup, bootloader configuration (GRUB), and EFI partition mounting. The script ensures that the system is ready for development by including essential packages like `git`, `base-devel`, and networking tools such as `iwd` and `dhcpcd`.
+This is a shell script designed to automate the installation of Arch Linux, complete with network setup, bootloader configuration (GRUB). The script ensures that the system is ready for development by including essential packages like `git`, `base-devel`, and networking tools such as `nmcli` and `dhcpcd`.
 
 ## Features
 - Automatic partition formatting and mounting (EFI, root, and swap).
 - Installs essential base packages (`base`, `linux`, `linux-firmware`).
-- Includes networking tools like `iwd` for wireless management and `dhcpcd` for DHCP.
-- Configures DNS for internet access immediately after installation.
-- Detects and configures Windows dual-boot with GRUB using `os-prober`.
+- Includes networking tools like `nmcli` for wireless management and `dhcpcd` for DHCP.
 - Installs development tools (`git` and `base-devel`).
-- Automatic timezone, locale, and hostname configuration.
+- Timezone, locale, and hostname configuration.
 - Automated GRUB installation and configuration.
 
 ## Prerequisites
@@ -53,9 +51,6 @@ This is a shell script designed to automate the installation of Arch Linux, comp
 
 ## Troubleshooting
 
-- **GRUB doesn't detect Windows**: Ensure your EFI partition is mounted correctly, and `os-prober` is enabled. If GRUB still doesn't detect Windows, check your partition setup and rerun `grub-mkconfig`.
-
-- **No internet connection**: Verify that `iwd` and `dhcpcd` are enabled and running. Make sure DNS is configured correctly in `/etc/resolv.conf`.
 
 ## Contribution
 
