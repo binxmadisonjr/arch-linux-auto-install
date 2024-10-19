@@ -122,6 +122,6 @@ EOF
 echo "Step 3/4 complete."
 
 # Unmount partitions and reboot with a 20-second delay
-echo "Step 4/4: Unmounting partitions and rebooting in 20 seconds..." | tee -a $LOGFILE
+echo "Step 4/4: Unmounting partitions and shutting down..." | tee -a $LOGFILE
 umount -R /mnt > /dev/null 2>> $LOGFILE || echo "Failed to unmount partitions" | tee -a $LOGFILE
-shutdown -r +0:00:20 "System will reboot in 20 seconds." > /dev/null 2>> $LOGFILE
+shutdown now "System will reboot in 20 seconds." > /dev/null 2>> $LOGFILE
