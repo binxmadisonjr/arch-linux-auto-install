@@ -7,9 +7,8 @@ clear
 BOOT_PARTITION="/dev/nvme0n1p5"
 ROOT_PARTITION="/dev/nvme0n1p6"
 SWAP_PARTITION="/dev/nvme0n1p7"
-USER_NAME="user"
 LOGFILE="/var/log/arch_install.log"
-WIRELESS_DEVICE="wlan0"  # Change based on your wireless interface name
+LOCALE="en_US.UTF-8"
 
 # Prompt for necessary information
 echo "Please enter the hostname:"
@@ -20,6 +19,9 @@ read TIMEZONE
 
 echo "Please enter the root password:"
 read -s ROOT_PASSWORD
+
+echo "Please enter the user name:"
+read USER_NAME
 
 echo "Please enter the password for user [$USER_NAME]:"
 read -s USER_PASSWORD
@@ -54,9 +56,19 @@ mount $BOOT_PARTITION /mnt/boot/efi > /dev/null 2>> $LOGFILE || echo "Failed to 
 swapon $SWAP_PARTITION > /dev/null 2>> $LOGFILE || echo "Failed to enable swap on $SWAP_PARTITION" | tee -a $LOGFILE
 
 # Install base system with status updates
-echo "Step 1/4: Installing base system..." | tee -a $LOGFILE
+echo "Installing base system..." | tee -a $LOGFILE
 pacstrap /mnt base linux linux-firmware nano networkmanager dhcpcd base-devel gcc make bison flex perl grub efibootmgr > /dev/null 2>> $LOGFILE || echo "Base system installation failed" | tee -a $LOGFILE
 echo "Step 1/4 complete."
+
+# Install LightDM (display manager) and enable it
+echo "Installing LightDM..." | tee -a $LOGFILE
+arch-chroot /mnt pacman -S lightdm lightdm-gtk-greeter --noconfirm > /dev/null 2>> $LOGFILE
+echo "Enabling LightDM..." | tee -a $LOGFILE
+arch-chroot /mnt systemctl enable lightdm > /dev/null 2>> $LOGFILE
+
+# Install CuteFish Desktop Environment
+echo "Installing CuteFish Desktop..." | tee -a $LOGFILE
+arch-chroot /mnt pacman -S cutefish cutefish-core cutefish-settings cutefish-dock --noconfirm > /dev/null 2>> $LOGFILE
 
 # Generate fstab
 echo "Step 2/4: Generating fstab..." | tee -a $LOGFILE
@@ -91,24 +103,18 @@ echo "Enabling NetworkManager..." | tee -a $LOGFILE
 systemctl enable NetworkManager > /dev/null 2>> $LOGFILE || echo "Failed to enable NetworkManager" | tee -a $LOGFILE
 systemctl start NetworkManager > /dev/null 2>> $LOGFILE || echo "Failed to start NetworkManager" | tee -a $LOGFILE
 
-# Wireless setup if interface exists
-if [ -n "$WIRELESS_DEVICE" ]; then
-    echo "Configuring wireless network..." | tee -a $LOGFILE
-    echo "Please enter your Wi-Fi SSID:"
-    read WIFI_SSID
-    echo "Please enter your Wi-Fi password:"
-    read -s WIFI_PASSWORD
-    nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" || echo "Failed to connect to Wi-Fi" | tee -a $LOGFILE
-fi
-
 # Set root password
 echo "Setting root password..." | tee -a $LOGFILE
 echo "root:$ROOT_PASSWORD" | chpasswd > /dev/null 2>> $LOGFILE || echo "Failed to set root password" | tee -a $LOGFILE
 
-# Create initial user
-echo "Creating initial user..." | tee -a $LOGFILE
+# Create initial user with sudo access
+echo "Creating initial user with sudo access..." | tee -a $LOGFILE
 useradd -m -G wheel -s /bin/bash "$USER_NAME" > /dev/null 2>> $LOGFILE || echo "Failed to create user $USER_NAME" | tee -a $LOGFILE
 echo "$USER_NAME:$USER_PASSWORD" | chpasswd > /dev/null 2>> $LOGFILE || echo "Failed to set password for user $USER_NAME" | tee -a $LOGFILE
+
+# Give the user full sudo access by modifying the sudoers file
+echo "Granting sudo access to $USER_NAME..." | tee -a $LOGFILE
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers > /dev/null 2>> $LOGFILE || echo "Failed to update sudoers file" | tee -a $LOGFILE
 
 # Install and configure bootloader (GRUB)
 echo "Installing GRUB..." | tee -a $LOGFILE
@@ -121,7 +127,9 @@ grub-mkconfig -o /boot/grub/grub.cfg > /dev/null 2>> $LOGFILE || echo "Failed to
 EOF
 echo "Step 3/4 complete."
 
-# Unmount partitions and reboot with a 20-second delay
-echo "Step 4/4: Unmounting partitions and shutting down..." | tee -a $LOGFILE
+# Unmount partitions and reboot with a 10-second delay
+echo "Step 4/4: Unmounting partitions and rebooting..." | tee -a $LOGFILE
 umount -R /mnt > /dev/null 2>> $LOGFILE || echo "Failed to unmount partitions" | tee -a $LOGFILE
-shutdown now "System will reboot in 20 seconds." > /dev/null 2>> $LOGFILE
+echo "System will reboot in 10 seconds..." | tee -a $LOGFILE
+sleep 10
+reboot
