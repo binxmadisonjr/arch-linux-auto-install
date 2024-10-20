@@ -17,10 +17,10 @@ dialog --title "Welcome to Arch Linux Installer" --msgbox "\nWelcome to the Arch
 
 # Variables (you can update these based on your setup)
 DISK="/dev/nvme0n1"          # Disk to install Arch Linux on
+LOGFILE="/var/log/arch_install.log"
 BOOT_PARTITION="${DISK}p1"    # EFI partition
 ROOT_PARTITION="${DISK}p2"    # Root partition
 SWAP_PARTITION="${DISK}p3"    # Swap partition (optional)
-LOGFILE="/var/log/arch_install.log"
 LOCALE="en_US.UTF-8"
 TIMEZONE="America/Chicago"   # Hardcoded timezone
 
@@ -33,7 +33,10 @@ handle_error() {
 # Set trap to catch errors and log them
 trap 'handle_error $LINENO' ERR
 
-# Prompt for necessary information with branding
+# Start logging
+exec > >(tee -i $LOGFILE) 2>&1
+
+# Prompt for necessary information
 dialog --inputbox "Please enter the hostname:" 8 50 2> /tmp/hostname
 HOSTNAME=$(< /tmp/hostname)
 
@@ -70,42 +73,39 @@ while true; do
     fi
 done
 
-# Clear or create the log file
-echo -e "${YELLOW}Starting Arch Linux installation...${RESET}" > $LOGFILE
+# Manually set mirrors for pacman
+echo "Setting custom mirrors..."
+cat <<EOF > /etc/pacman.d/mirrorlist
+Server = https://mirrors.rutgers.edu/archlinux/\$repo/os/\$arch
+Server = https://mirrors.liquidweb.com/archlinux/\$repo/os/\$arch
+Server = https://ca.us.mirror.archlinux-br.org/\$repo/os/\$arch
+Server = https://mirror.kaminski.io/archlinux/\$repo/os/\$arch
+Server = https://arch.mirror.square-r00t.net/\$repo/os/\$arch
+Server = https://mirrors.radwebhosting.com/archlinux/\$repo/os/\$arch
+Server = https://mirror.stjschools.org/arch/\$repo/os/\$arch
+Server = https://archlinux.macame.com/\$repo/os/\$arch
+EOF
 
-# Start the timer
-start_time=$(date +%s)
-
-# Optimize mirrors for faster package downloads
-dialog --infobox "Optimizing Arch mirrors for faster downloads..." 5 50
-reflector --country "United States" --protocol https --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
-
-# Update system clock
-dialog --infobox "Updating system clock..." 5 50
-timedatectl set-ntp true &> /dev/null
-
-# Wipe the entire disk and create a new partition table
+# Wipe and create new partitions using parted
 dialog --infobox "Wiping and partitioning disk ${DISK}..." 5 50
-sgdisk --zap-all $DISK &> /dev/null
-sgdisk -o $DISK &> /dev/null
-
-# Create partitions: 512MB EFI, rest for root, and 4GB for swap (optional)
-sgdisk -n 1:0:+512M -t 1:ef00 $DISK &> /dev/null
-sgdisk -n 2:0:0 -t 2:8300 $DISK &> /dev/null
-sgdisk -n 3:0:+4G -t 3:8200 $DISK &> /dev/null
+parted ${DISK} --script mklabel gpt # Ensure GPT partition table
+parted ${DISK} --script mkpart primary fat32 1MiB 513MiB
+parted ${DISK} --script set 1 esp on
+parted ${DISK} --script mkpart primary ext4 513MiB 100%
+parted ${DISK} --script mkpart primary linux-swap 100% 104GiB
 
 # Format partitions
 dialog --infobox "Formatting partitions..." 5 50
-mkfs.fat -F32 $BOOT_PARTITION &> /dev/null
-mkfs.ext4 -F $ROOT_PARTITION &> /dev/null
-mkswap $SWAP_PARTITION &> /dev/null
+mkfs.fat -F32 ${DISK}p1
+mkfs.ext4 ${DISK}p2
+mkswap ${DISK}p3
 
 # Mount partitions
 dialog --infobox "Mounting partitions..." 5 50
-mount $ROOT_PARTITION /mnt &> /dev/null
-mkdir -p /mnt/boot/efi &> /dev/null
-mount $BOOT_PARTITION /mnt/boot/efi &> /dev/null
-swapon $SWAP_PARTITION &> /dev/null
+mount ${DISK}p2 /mnt
+mkdir -p /mnt/boot/efi
+mount ${DISK}p1 /mnt/boot/efi
+swapon ${DISK}p3
 
 # Install base system with LTS kernel, KDE Plasma, and SDDM
 dialog --gauge "Installing base system, LTS kernel, KDE Plasma, and SDDM..." 10 60 < <(
