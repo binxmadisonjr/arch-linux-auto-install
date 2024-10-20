@@ -1,124 +1,118 @@
 #!/bin/bash
 
-# Install dialog if it's not installed
-if ! command -v dialog &> /dev/null
-then
-    sudo pacman -S --noconfirm dialog
-fi
-
-# Colors for styling
-GREEN="\033[1;32m"
-YELLOW="\033[1;33m"
-CYAN="\033[1;36m"
-RESET="\033[0m"
-
-# Branding and welcome message
-dialog --title "Welcome to Arch Linux Installer" --msgbox "\nWelcome to the Arch Linux Installer by binxmadisonjr!\n\nLet's get started with your Arch Linux setup!" 10 50
+# Clear the screen to start with a clean slate
+clear
 
 # Variables (you can update these based on your setup)
-DISK="/dev/nvme0n1"          # Disk to install Arch Linux on
-LOGFILE="/var/log/arch_install.log"
-BOOT_PARTITION="${DISK}p1"    # EFI partition
-ROOT_PARTITION="${DISK}p2"    # Root partition
-SWAP_PARTITION="${DISK}p3"    # Swap partition (optional)
+DISK="/dev/nvme0n1"
+BOOT_PARTITION="${DISK}p1"
+ROOT_PARTITION="${DISK}p2"
+SWAP_PARTITION="${DISK}p3"
 LOCALE="en_US.UTF-8"
-TIMEZONE="America/Chicago"   # Hardcoded timezone
+TIMEZONE="America/Chicago"
+HOSTNAME="archlinux"
+USER_NAME="binxmadisonjr"
 
-# Helper function for error handling
-handle_error() {
-    dialog --title "Error" --msgbox "Error occurred at line $1. Check the log file for details: $LOGFILE" 8 50
+# Prompt for passwords
+echo "Please enter the root password:"
+read -s ROOT_PASSWORD
+clear
+echo "Please confirm the root password:"
+read -s ROOT_PASSWORD_CONFIRM
+clear
+
+if [[ "$ROOT_PASSWORD" != "$ROOT_PASSWORD_CONFIRM" ]]; then
+    echo "Passwords do not match. Exiting..."
     exit 1
-}
+fi
 
-# Set trap to catch errors and log them
-trap 'handle_error $LINENO' ERR
+echo "Please enter the password for user [$USER_NAME]:"
+read -s USER_PASSWORD
+clear
+echo "Please confirm the password for user [$USER_NAME]:"
+read -s USER_PASSWORD_CONFIRM
+clear
 
-# Start logging with timestamps
-exec > >(tee -a $LOGFILE) 2> >(tee -a $LOGFILE >&2)
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting installation" >> $LOGFILE
+if [[ "$USER_PASSWORD" != "$USER_PASSWORD_CONFIRM" ]]; then
+    echo "Passwords do not match. Exiting..."
+    exit 1
+fi
 
-# Manually set mirrors for pacman
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Setting custom mirrors" >> $LOGFILE
-cat <<EOF > /etc/pacman.d/mirrorlist
-Server = https://mirrors.rutgers.edu/archlinux/\$repo/os/\$arch
-Server = https://mirrors.liquidweb.com/archlinux/\$repo/os/\$arch
-Server = https://ca.us.mirror.archlinux-br.org/\$repo/os/\$arch
-Server = https://mirror.kaminski.io/archlinux/\$repo/os/\$arch
-Server = https://arch.mirror.square-r00t.net/\$repo/os/\$arch
-Server = https://mirrors.radwebhosting.com/archlinux/\$repo/os/\$arch
-Server = https://mirror.stjschools.org/arch/\$repo/os/\$arch
-Server = https://archlinux.macame.com/\$repo/os/\$arch
-EOF
+# Update system clock
+timedatectl set-ntp true || { echo "Failed to update system clock"; exit 1; }
 
-# Wipe and create new partitions using parted (with adjusted partition sizes)
-dialog --infobox "Wiping and partitioning disk ${DISK}..." 5 50
-parted ${DISK} --script mklabel gpt   # Ensure GPT partition table
+# Wiping and partitioning disk
+echo "Wiping and partitioning disk $DISK..."
+sgdisk -Z $DISK || { echo "Failed to wipe disk"; exit 1; }
+sgdisk -o $DISK || { echo "Failed to create new GPT on disk"; exit 1; }
 
-# Create 512 MB EFI partition
-parted ${DISK} --script mkpart primary fat32 1MiB 513MiB
-parted ${DISK} --script set 1 esp on
-
-# Create Root Partition
-parted ${DISK} --script mkpart primary ext4 513MiB 100%   # The rest of the space goes to root partition
+# Create partitions: 512MB EFI, rest for root, and 4GB for swap (optional)
+echo "Creating partitions..."
+sgdisk -n 1:0:+512M -t 1:ef00 $DISK || { echo "Failed to create boot partition"; exit 1; }
+sgdisk -n 2:0:+50G -t 2:8300 $DISK || { echo "Failed to create root partition"; exit 1; }
+sgdisk -n 3:0:+4G -t 3:8200 $DISK || { echo "Failed to create swap partition"; exit 1; }
 
 # Format partitions
-dialog --infobox "Formatting partitions..." 5 50
-mkfs.fat -F32 ${DISK}p1
-mkfs.ext4 ${DISK}p2
+echo "Formatting partitions..."
+mkfs.fat -F32 $BOOT_PARTITION || { echo "Failed to format boot partition"; exit 1; }
+mkfs.ext4 -F $ROOT_PARTITION || { echo "Failed to format root partition"; exit 1; }
+mkswap $SWAP_PARTITION || { echo "Failed to create swap"; exit 1; }
 
 # Mount partitions
-dialog --infobox "Mounting partitions..." 5 50
-mount ${DISK}p2 /mnt
-mkdir -p /mnt/boot/efi
-mount ${DISK}p1 /mnt/boot/efi
+echo "Mounting partitions..."
+mount $ROOT_PARTITION /mnt || { echo "Failed to mount root partition"; exit 1; }
+mkdir -p /mnt/boot/efi || { echo "Failed to create /mnt/boot/efi"; exit 1; }
+mount $BOOT_PARTITION /mnt/boot/efi || { echo "Failed to mount boot partition"; exit 1; }
+swapon $SWAP_PARTITION || { echo "Failed to enable swap"; exit 1; }
 
 # Install base system with LTS kernel, KDE Plasma, and SDDM
-dialog --gauge "Installing base system, LTS kernel, KDE Plasma, and SDDM..." 10 60 <(
-    pacstrap /mnt base linux linux-lts linux-firmware nano networkmanager grub efibootmgr plasma kde-applications sddm > /dev/null 2>> $LOGFILE
-)
+echo "Installing base system, LTS kernel, KDE Plasma, and SDDM..."
+pacstrap /mnt base linux linux-lts linux-firmware nano networkmanager grub efibootmgr plasma kde-applications sddm || { echo "Failed to install base system"; exit 1; }
 
 # Generate fstab
-genfstab -U /mnt >> /mnt/etc/fstab 2>> $LOGFILE || echo "Failed to generate fstab" | tee -a $LOGFILE
+echo "Generating fstab..."
+genfstab -U /mnt >> /mnt/etc/fstab || { echo "Failed to generate fstab"; exit 1; }
 
-# Chroot into the new system to configure
+# Chroot into the new system
+echo "Configuring the system..."
 arch-chroot /mnt <<EOF
-    echo "Setting up in chroot environment..."
+# Set time zone
+ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime || { echo "Failed to set time zone"; exit 1; }
+hwclock --systohc || { echo "Failed to set hardware clock"; exit 1; }
 
-    # Set timezone
-    ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-    hwclock --systohc
+# Set locale
+echo "$LOCALE UTF-8" > /etc/locale.gen
+locale-gen || { echo "Failed to generate locale"; exit 1; }
+echo "LANG=$LOCALE" > /etc/locale.conf
 
-    # Set locale
-    echo "$LOCALE UTF-8" > /etc/locale.gen
-    locale-gen
-    echo "LANG=$LOCALE" > /etc/locale.conf
+# Set hostname
+echo "$HOSTNAME" > /etc/hostname
 
-    # Set hostname
-    echo "binxmadisonjr" > /etc/hostname
+# Set keymap (optional)
+echo "KEYMAP=us" > /etc/vconsole.conf
 
-    # Enable NetworkManager
-    systemctl enable NetworkManager
+# Enable NetworkManager
+systemctl enable NetworkManager || { echo "Failed to enable NetworkManager"; exit 1; }
 
-    # Enable SDDM (KDE display manager)
-    systemctl enable sddm
+# Set root password
+echo "root:$ROOT_PASSWORD" | chpasswd || { echo "Failed to set root password"; exit 1; }
 
-    # Set root password
-    echo "root:password" | chpasswd
+# Create user with sudo access
+useradd -m -G wheel -s /bin/bash "$USER_NAME" || { echo "Failed to create user $USER_NAME"; exit 1; }
+echo "$USER_NAME:$USER_PASSWORD" | chpasswd || { echo "Failed to set password for user $USER_NAME"; exit 1; }
 
-    # Create user and give sudo access
-    useradd -m -G wheel -s /bin/bash binxmadisonjr
-    echo "binxmadisonjr:password" | chpasswd
-    sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+# Grant sudo access to the user
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers || { echo "Failed to update sudoers"; exit 1; }
 
-    # Install and configure bootloader (GRUB)
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
-    grub-mkconfig -o /boot/grub/grub.cfg
+# Install and configure bootloader (GRUB)
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB || { echo "Failed to install GRUB"; exit 1; }
+grub-mkconfig -o /boot/grub/grub.cfg || { echo "Failed to generate GRUB config"; exit 1; }
 
+# Enable SDDM
+systemctl enable sddm || { echo "Failed to enable SDDM"; exit 1; }
 EOF
 
-# Unmount and reboot
-dialog --infobox "Arch Linux installation complete! Unmounting partitions..." 5 50
-umount -R /mnt
-dialog --infobox "Rebooting in 10 seconds..." 5 50
-sleep 10
+# Unmount partitions and reboot
+echo "Unmounting partitions and rebooting..."
+umount -R /mnt || { echo "Failed to unmount partitions"; exit 1; }
 reboot
