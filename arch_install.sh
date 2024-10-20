@@ -86,7 +86,7 @@ timedatectl set-ntp true &> /dev/null
 
 # Wipe the entire disk and create a new partition table
 dialog --infobox "Wiping and partitioning disk ${DISK}..." 5 50
-sgdisk -Z $DISK &> /dev/null
+sgdisk --zap-all $DISK &> /dev/null
 sgdisk -o $DISK &> /dev/null
 
 # Create partitions: 512MB EFI, rest for root, and 4GB for swap (optional)
