@@ -1,57 +1,60 @@
-# Arch Linux Automated Installation Script
+Arch Linux Installer - by binxmadisonjr
+=======================================
 
-## Description
-This is a shell script designed to automate the installation of Arch Linux, complete with network setup, bootloader configuration (GRUB). The script ensures that the system is ready for development by including essential packages like `git`, `base-devel`, and networking tools such as `nmcli` and `dhcpcd`.
+Welcome to the custom-built Arch Linux Installer! This installer is designed to streamline the process of setting up Arch Linux with the **KDE Plasma desktop environment** and the **LTS kernel** for stability. This script simulates a GUI-style interface using `dialog` and guides you through setting up your hostname, user credentials, and more.
 
-## Features
-- Automatic partition formatting and mounting (EFI, root, and swap).
-- Installs essential base packages (`base`, `linux`, `linux-firmware`).
-- Includes networking tools like `nmcli` for wireless management and `dhcpcd` for DHCP.
-- Installs development tools (`git` and `base-devel`).
-- Timezone, locale, and hostname configuration.
-- Automated GRUB installation and configuration.
+Installation Steps
+------------------
 
-## Prerequisites
-- UEFI-enabled system (for EFI partition usage).
-- An existing Arch Linux live environment (booted from USB or other media).
-- Partition structure ready (EFI, root, and swap partitions).
+1.  Download or clone the script to your local machine.
+2.  Ensure the script is executable by running the following command in your terminal:
+    
+        chmod +x arch_installer.sh
+    
+3.  Run the script as `root` or using `sudo`:
+    
+        sudo ./arch_installer.sh
+    
+4.  Follow the on-screen prompts to configure your system:
+    *   **Hostname:** Enter the desired hostname for your system.
+    *   **Root Password:** You'll be asked to enter and confirm the root password.
+    *   **User Account:** Specify a username and password for your user account. You will also confirm the user password.
+5.  Wait for the installation process to complete. The installer will set up partitions, install the base system, and configure KDE Plasma as the desktop environment.
+6.  Once the installation finishes, your system will shut down automatically. Upon restarting, your fresh Arch Linux installation will be ready!
 
-## How to Use
+Features
+--------
 
-1. **Boot into the Arch Linux live environment** from your USB or other bootable media.
+*   **Password Confirmation:** The installer verifies both root and user passwords to prevent any mistakes during password setup.
+*   **Interactive Dialog Interface:** A user-friendly interface powered by `dialog` for an Archinstall-like experience.
+*   **Automatic Timezone Configuration:** Timezone is hardcoded to `America/Chicago`, but can be customized in the script.
+*   **GUI Desktop Environment:** Installs KDE Plasma as the default desktop environment with the **LTS kernel** for enhanced stability.
 
-2. **Set up your partitions**: Ensure you have an EFI partition (usually around 100 MB), a root partition, and a swap partition.
+Customization
+-------------
 
-3. **Clone this repository**:
-   ```bash
-   git clone https://github.com/binxmadisonjr/arch-linux-auto-install.git
-   cd arch-linux-auto-install
-4. **Edit the script if necessary**: Update the partition variables in `arch_install.sh` if they differ from the defaults in the script.
+The script has a few configurable options:
 
-5. **Make the script executable**:
-   ```bash
-   chmod +x arch_install.sh
-6. **Run the script**:
-   ```bash
-   ./arch_install.sh
-7. **Follow the prompts**: The script will handle partition formatting, system installation, and GRUB configuration.
+*   **Timezone:** Currently set to `America/Chicago`. You can change this by editing the `TIMEZONE` variable in the script:
+    
+        TIMEZONE="America/Chicago"
+    
+    Change the value to your desired timezone (e.g., `Europe/London`).
+*   **Disk Layout:** The script uses a default NVMe disk setup. If you need to use a different disk, modify the `DISK` variable:
+    
+        DISK="/dev/nvme0n1"
+    
+    Replace this with your desired disk (e.g., `/dev/sda`).
+*   **Desktop Environment:** The script is designed for KDE Plasma but can be adapted for other desktop environments. Replace `plasma kde-applications sddm` with your preferred DE packages (e.g., `gnome gdm`).
 
-8. **Reboot** after the script completes.
+Logging
+-------
 
-## Included Packages
-- `base`: The Arch base system.
-- `linux`: The latest Arch Linux kernel.
-- `linux-firmware`: Firmware needed by the kernel.
-- `nano`: A lightweight terminal text editor.
-- `iwd`: Wireless management tool for Wi-Fi setup.
-- `dhcpcd`: DHCP client for automatic IP assignment.
-- `netctl`: Networking profiles for systemd.
-- `git`: Version control for managing repositories.
-- `base-devel`: Essential development tools for compiling software.
+All installation logs are stored in `/var/log/arch_install.log`. If you encounter any issues during the installation, you can refer to this file for troubleshooting.
 
-## Troubleshooting
+Support
+-------
 
+If you have any questions, issues, or need support, feel free to reach out to me via email at **thenintiescalled@gmail.com**.
 
-## Contribution
-
-Feel free to contribute to this project by opening issues or submitting pull requests!
+Created by **binxmadisonjr** - Happy Arching!
